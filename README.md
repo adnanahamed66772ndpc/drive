@@ -278,6 +278,28 @@ You can manage access to your storages by granting access to other users. For no
 
 So you can grant access, change it or restrict (delete access) for other users.
 
+## Database backup and restore
+
+You can backup and restore the PostgreSQL database when running via Docker Compose.
+
+**Backup** – creates a timestamped file in `backups/`:
+
+```sh
+make backup
+# or: ./scripts/backup.sh [optional_output_file]
+# Windows PowerShell: .\scripts\backup.ps1 [optional_output_file]
+```
+
+**Restore** – imports from a backup file:
+
+```sh
+make restore FILE=backups/pentaract_20250107_120000.sql
+# or: ./scripts/restore.sh backups/pentaract_20250107_120000.sql
+# Windows PowerShell: .\scripts\restore.ps1 backups\pentaract_20250107_120000.sql
+```
+
+> Ensure the `pentaract_db` container is running before backup or restore.
+
 # Donations
 
 If you find this project useful and would like to see it continue to grow and improve, your support is greatly appreciated! Your donation will help cover the costs of development, maintenance, and future enhancements. Every contribution, no matter the size, makes a significant impact:
