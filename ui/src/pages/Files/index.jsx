@@ -1,6 +1,5 @@
 import { useBeforeLeave, useNavigate, useParams } from '@solidjs/router'
 import { Show, createSignal, mapArray, onCleanup, onMount } from 'solid-js'
-import List from '@suid/material/List'
 import MenuItem from '@suid/material/MenuItem'
 import ListItemIcon from '@suid/material/ListItemIcon'
 import ListItemText from '@suid/material/ListItemText'
@@ -11,7 +10,6 @@ import LockIcon from '@suid/icons-material/Lock'
 import Grid from '@suid/material/Grid'
 import Stack from '@suid/material/Stack'
 import Typography from '@suid/material/Typography'
-import Divider from '@suid/material/Divider'
 import Fab from '@suid/material/Fab'
 import ToggleButton from '@suid/material/ToggleButton'
 import ToggleButtonGroup from '@suid/material/ToggleButtonGroup'
@@ -242,19 +240,21 @@ const Files = () => {
 				>
 					<Grid>
 						<Show when={fsLayer().length} fallback={<>Not files yet</>}>
-							<List sx={{ minWidth: 320, maxWidth: 540, mx: 'auto' }}>
-								<Divider />
+							<Grid
+								container
+								spacing={1}
+								sx={{ maxWidth: 900, mx: 'auto', py: 1 }}
+							>
 								{mapArray(fsLayer, (fsElement) => (
-									<>
+									<Grid item xs={6} sm={4} md={3}>
 										<FSListItem
 											fsElement={fsElement}
 											storageId={params.id}
 											onDelete={fetchFSLayer}
 										/>
-										<Divider />
-									</>
+									</Grid>
 								))}
-							</List>
+							</Grid>
 						</Show>
 					</Grid>
 

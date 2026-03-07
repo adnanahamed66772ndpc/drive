@@ -7,10 +7,8 @@ import Box from '@suid/material/Box'
 import { createSignal, createEffect, onCleanup, Show } from 'solid-js'
 
 import API from '../api'
+import { IMAGE_EXT, VIDEO_EXT, getExt } from '../common/fileTypes'
 
-const IMAGE_EXT = new Set(
-	'jpg jpeg png gif webp bmp svg ico'.split(' ')
-)
 const TEXT_EXT = new Set(
 	'txt md csv json xml yaml yml log html htm css js ts jsx tsx'.split(' ')
 )
@@ -31,13 +29,10 @@ const FilePreviewDialog = (props) => {
 	const [status, setStatus] = createSignal('idle') // 'idle' | 'loading' | 'ok' | 'error'
 	const [objectUrl, setObjectUrl] = createSignal(null)
 	const [textContent, setTextContent] = createSignal('')
-	const [previewType, setPreviewType] = createSignal(null) // 'image' | 'pdf' | 'text' | 'unsupported'
+	const [previewType, setPreviewType] = createSignal(null) // 'image' | 'pdf' | 'text' | 'video' | 'unsupported'
 	const [errorMessage, setErrorMessage] = createSignal('')
 
-	const ext = () =>
-		props.fileName.includes('.')
-			? props.fileName.split('.').pop().toLowerCase()
-			: ''
+	const ext = () => getExt(props.fileName)
 
 	createEffect(() => {
 		if (!props.isOpened) {
@@ -59,6 +54,8 @@ const FilePreviewDialog = (props) => {
 			setPreviewType('image')
 		} else if (extVal === 'pdf') {
 			setPreviewType('pdf')
+		} else if (VIDEO_EXT.has(extVal)) {
+			setPreviewType('video')
 		} else if (TEXT_EXT.has(extVal)) {
 			setPreviewType('text')
 		} else {
@@ -74,7 +71,9 @@ const FilePreviewDialog = (props) => {
 			? 'image'
 			: extVal === 'pdf'
 				? 'pdf'
-				: 'text'
+				: VIDEO_EXT.has(extVal)
+					? 'video'
+					: 'text'
 
 		API.files
 			.download(props.storageId, props.path)
@@ -154,6 +153,20 @@ const FilePreviewDialog = (props) => {
 							width: '100%',
 							minHeight: '70vh',
 							border: 'none',
+						}}
+					/>
+				</Show>
+				<Show when={status() === 'ok' && previewType() === 'video' && objectUrl()}>
+					<Box
+						component="video"
+						src={objectUrl()}
+						controls
+						playsInline
+						sx={{
+							width: '100%',
+							maxHeight: '70vh',
+							display: 'block',
+							mx: 'auto',
 						}}
 					/>
 				</Show>

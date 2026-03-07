@@ -1,10 +1,11 @@
-import ListItem from '@suid/material/ListItem'
-import ListItemButton from '@suid/material/ListItemButton'
+import Box from '@suid/material/Box'
 import ListItemIcon from '@suid/material/ListItemIcon'
 import ListItemText from '@suid/material/ListItemText'
 import MenuMUI from '@suid/material/Menu'
 import MenuItem from '@suid/material/MenuItem'
 import IconButton from '@suid/material/IconButton'
+import Paper from '@suid/material/Paper'
+import Typography from '@suid/material/Typography'
 import FileIcon from '@suid/icons-material/InsertDriveFileOutlined'
 import FolderIcon from '@suid/icons-material/Folder'
 import MoreVertIcon from '@suid/icons-material/MoreVert'
@@ -12,13 +13,15 @@ import DownloadIcon from '@suid/icons-material/Download'
 import VisibilityIcon from '@suid/icons-material/Visibility'
 import InfoIcon from '@suid/icons-material/Info'
 import DeleteIcon from '@suid/icons-material/Delete'
-import { createSignal } from 'solid-js'
+import { createSignal, onCleanup, Show } from 'solid-js'
 import { useNavigate, useParams } from '@solidjs/router'
 
 import API from '../api'
+import { isImageFile } from '../common/fileTypes'
 import ActionConfirmDialog from './ActionConfirmDialog'
 import FileInfoDialog from './FileInfo'
 import FilePreviewDialog from './FilePreviewDialog'
+import FileThumbnail from './FileThumbnail'
 
 /**
  * @typedef {Object} FSListItemProps
@@ -83,25 +86,113 @@ const FSListItem = (props) => {
 		props.onDelete()
 	}
 
+	const isImage = () =>
+		props.fsElement.is_file && isImageFile(props.fsElement.name)
+	const ICON_SIZE = 80
+
 	return (
 		<>
-			<ListItem disablePadding>
-				<ListItemButton onClick={handleNavigate}>
-					<ListItemIcon>
-						<Show when={props.fsElement.is_file} fallback={<FolderIcon />}>
-							<FileIcon />
-						</Show>
-					</ListItemIcon>
-					<ListItemText primary={props.fsElement.name} />
-				</ListItemButton>
-				<IconButton
-					onClick={(event) => {
-						setMoreAnchorEl(event.currentTarget)
+			<Paper
+				elevation={0}
+				sx={{
+					display: 'flex',
+					alignItems: 'flex-start',
+					gap: 0.5,
+					p: 1,
+					minWidth: 0,
+					borderRadius: 1,
+					'&:hover': { bgcolor: 'action.hover' },
+				}}
+			>
+				<Box
+					onClick={() => {
+						if (props.fsElement.is_file) {
+							setIsPreviewDialogOpened(true)
+						} else {
+							handleNavigate()
+						}
+					}}
+					sx={{
+						flex: 1,
+						minWidth: 0,
+						display: 'flex',
+						flexDirection: 'column',
+						alignItems: 'center',
+						cursor: 'pointer',
+						textAlign: 'center',
 					}}
 				>
-					<MoreVertIcon />
+					<Box sx={{ position: 'relative' }}>
+						<Show
+							when={props.fsElement.is_file}
+							fallback={
+								<Box
+									sx={{
+										width: ICON_SIZE,
+										height: ICON_SIZE,
+										display: 'flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										bgcolor: 'action.hover',
+										borderRadius: 1,
+									}}
+								>
+									<FolderIcon sx={{ fontSize: 48 }} color="primary" />
+								</Box>
+							}
+						>
+							<Show
+								when={isImage()}
+								fallback={
+									<Box
+										sx={{
+											width: ICON_SIZE,
+											height: ICON_SIZE,
+											display: 'flex',
+											alignItems: 'center',
+											justifyContent: 'center',
+											bgcolor: 'action.hover',
+											borderRadius: 1,
+										}}
+									>
+										<FileIcon sx={{ fontSize: 48 }} color="action" />
+									</Box>
+								}
+							>
+								<FileThumbnail
+									storageId={props.storageId}
+									path={props.fsElement.path}
+									fileName={props.fsElement.name}
+									size={ICON_SIZE}
+								/>
+							</Show>
+						</Show>
+					</Box>
+					<Typography
+						variant="body2"
+						sx={{
+							mt: 0.5,
+							px: 0.5,
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+							maxWidth: ICON_SIZE + 24,
+						}}
+					>
+						{props.fsElement.name}
+					</Typography>
+				</Box>
+				<IconButton
+					size="small"
+					onClick={(e) => {
+						e.stopPropagation()
+						setMoreAnchorEl(e.currentTarget)
+					}}
+				>
+					<MoreVertIcon fontSize="small" />
 				</IconButton>
-			</ListItem>
+			</Paper>
+
 			<MenuMUI
 				id="basic-menu"
 				anchorEl={moreAnchorEl()}
