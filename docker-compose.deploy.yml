@@ -1,5 +1,5 @@
-# Use pre-built image (no build on VPS - avoids OpenSSL/musl build errors)
-# Same as docker-compose.yml but uses thedominux/pentaract from Docker Hub
+# Uses custom image from GitHub Actions (includes Backup & Restore UI)
+# Image: ghcr.io/adnanahamed66772ndpc/drive:latest
 version: "3.9"
 
 volumes:
@@ -13,7 +13,7 @@ networks:
 services:
   pentaract:
     container_name: pentaract
-    image: thedominux/pentaract:latest
+    image: ghcr.io/adnanahamed66772ndpc/drive:latest
     env_file:
       - .env
     ports:

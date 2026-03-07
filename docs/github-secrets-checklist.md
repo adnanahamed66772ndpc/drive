@@ -1,6 +1,6 @@
 # GitHub Secrets checklist (push = auto deploy to VPS)
 
-Add these secrets once. Then **every push to main** = the workflow SSHs to your VPS, installs Docker (if needed), clones/pulls the repo, creates `.env`, and runs Pentaract.
+Add these secrets once. Then **every push to main** = the workflow **builds** your custom image (with Backup & Restore UI), pushes to GHCR, SSHs to your VPS, and runs Pentaract.
 
 ---
 
@@ -74,11 +74,12 @@ Optional: **VPS_PORT** (default 22), **DEPLOY_PATH** (default `/var/www/drive`),
 
 1. Push to `main` (or run the workflow from the **Actions** tab).
 2. The workflow will:
+  - **Build** Docker image (includes Backup & Restore tab) and push to `ghcr.io/adnanahamed66772ndpc/drive`
   - SSH into your VPS
   - Install Docker and Git if missing
   - Clone (first time) or pull latest
   - Create `.env` from your secrets
-  - Run `docker compose up -d --build`
+  - Run `docker compose -f docker-compose.deploy.yml up -d`
 3. When the run is green, open **[http://YOUR_VPS_IP:8000](http://YOUR_VPS_IP:8000)**.
 4. **Login:** use **SUPERUSER_EMAIL** and **SUPERUSER_PASS** from secrets.
 
@@ -89,4 +90,5 @@ Optional: **VPS_PORT** (default 22), **DEPLOY_PATH** (default `/var/www/drive`),
 - **Connection timeout** – Allow SSH on the firewall: `sudo ufw allow 22/tcp && sudo ufw reload`. Check cloud security groups if you use AWS/DigitalOcean/etc.
 - **SSH handshake failed** – Ensure **SSH_PRIVATE_KEY** includes full key with headers. Use a key without passphrase: `ssh-keygen -t ed25519 -f deploy_key -N ""`.
 - **Password login** – If key fails, remove **SSH_PRIVATE_KEY** and set **VPS_PASSWORD**.
+- **GHCR pull denied** – If the image is private, go to repo → Packages → drive → Package settings → Change visibility to **Public**.
 
