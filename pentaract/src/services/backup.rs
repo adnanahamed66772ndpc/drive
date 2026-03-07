@@ -1,4 +1,4 @@
-use sqlx::{postgres::PgRow, PgPool, Row};
+use sqlx::{postgres::PgRow, Column, PgPool, Row};
 use std::fmt::Write;
 
 use crate::errors::{PentaractError, PentaractResult};

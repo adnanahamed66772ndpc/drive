@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use axum::{
-    body::Body,
     extract::{DefaultBodyLimit, Multipart, State},
-    http::{header, StatusCode},
+    http::{header, HeaderValue, StatusCode},
     middleware,
     response::{AppendHeaders, IntoResponse, Response},
     routing::{get, post},
@@ -11,10 +10,7 @@ use axum::{
 };
 
 use crate::{
-    common::{
-        jwt_manager::AuthUser,
-        routing::{app_state::AppState, middlewares::auth::logged_in_required},
-    },
+    common::routing::{app_state::AppState, middlewares::auth::logged_in_required},
     services::backup::BackupService,
 };
 
@@ -45,16 +41,15 @@ impl BackupRouter {
             "pentaract_backup_{}.sql",
             chrono::Utc::now().format("%Y%m%d_%H%M%S")
         );
+        let content_disp = HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename))
+            .unwrap_or(HeaderValue::from_static("attachment"));
 
         let headers = AppendHeaders([
-            (header::CONTENT_TYPE, "application/sql"),
-            (
-                header::CONTENT_DISPOSITION,
-                format!("attachment; filename=\"{}\"", filename),
-            ),
+            (header::CONTENT_TYPE, HeaderValue::from_static("application/sql")),
+            (header::CONTENT_DISPOSITION, content_disp),
         ]);
 
-        Ok((headers, Body::from(sql)).into_response())
+        Ok((headers, sql).into_response())
     }
 
     async fn restore(
