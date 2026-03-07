@@ -1,6 +1,14 @@
+import createLocalStore from '../../libs'
 import { alertStore } from '../components/AlertStack'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api'
+
+function handleUnauthorized() {
+	const [, setStore, remove] = createLocalStore()
+	remove('access_token')
+	setStore('redirect', window.location.pathname)
+	window.location.href = '/login'
+}
 
 /**
  * @typedef {'get' | 'post' | 'patch' | 'delete'} Method
@@ -38,6 +46,11 @@ const apiRequest = async (
 			body: body !== undefined ? JSON.stringify(body) : undefined,
 			headers,
 		})
+
+		if (response.status === 401) {
+			handleUnauthorized()
+			throw new Error('Session expired')
+		}
 
 		if (!response.ok) {
 			throw new Error(await response.text())
@@ -81,6 +94,11 @@ export const apiMultipartRequest = async (path, auth_token, form) => {
 			body: form,
 			headers,
 		})
+
+		if (response.status === 401) {
+			handleUnauthorized()
+			throw new Error('Session expired')
+		}
 
 		if (!response.ok) {
 			throw new Error(await response.text())
