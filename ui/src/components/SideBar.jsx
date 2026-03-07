@@ -9,6 +9,7 @@ import ListItemButton from '@suid/material/ListItemButton'
 import { createSignal } from 'solid-js'
 import StorageIcon from '@suid/icons-material/Storage'
 import SmartToyIcon from '@suid/icons-material/SmartToyOutlined'
+import BackupIcon from '@suid/icons-material/Backup'
 
 import SideBarItem from './SideBarItem'
 
@@ -58,6 +59,13 @@ const SideBar = () => {
 					isFull={open()}
 				>
 					<SmartToyIcon />
+				</SideBarItem>
+				<SideBarItem
+					text="Backup & Restore"
+					link="/backup-restore"
+					isFull={open()}
+				>
+					<BackupIcon />
 				</SideBarItem>
 			</List>
 		</Drawer>

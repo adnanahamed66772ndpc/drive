@@ -10,6 +10,7 @@ import StorageWorkers from './pages/StorageWorkers'
 import StorageWorkerCreateForm from './pages/StorageWorkers/StorageWorkerCreateForm'
 import Files from './pages/Files'
 import UploadFileTo from './pages/Files/UploadFileTo'
+import BackupRestore from './pages/BackupRestore'
 import Register from './pages/Register'
 import NotFound from './pages/404'
 
@@ -42,6 +43,7 @@ const App = () => {
 						path="/storage_workers/register"
 						component={StorageWorkerCreateForm}
 					/>
+					<Route path="/backup-restore" component={BackupRestore} />
 					<Route path="*404" component={NotFound} />
 				</Route>
 			</Routes>
