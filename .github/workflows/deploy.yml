@@ -37,7 +37,7 @@ jobs:
             if ! command -v docker >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
               export DEBIAN_FRONTEND=noninteractive
               sudo -E apt-get update -qq
-              sudo -E apt-get install -y docker.io docker-compose git
+              sudo -E apt-get install -y docker.io docker-compose-plugin git || sudo -E apt-get install -y docker.io docker-compose git
               sudo usermod -aG docker $USER 2>/dev/null || true
             fi
             echo "Step 1 done."
@@ -90,7 +90,9 @@ jobs:
             echo "Using: $COMPOSE"
             df -h .
             echo "Pulling pre-built image and starting containers (no build)..."
-            sudo $COMPOSE -f docker-compose.deploy.yml up -d --force-recreate
+            sudo $COMPOSE -f docker-compose.deploy.yml pull
+            sudo $COMPOSE -f docker-compose.deploy.yml down 2>/dev/null || true
+            sudo $COMPOSE -f docker-compose.deploy.yml up -d
             echo "Step 4 done."
 
             echo "=== Deploy finished ==="
