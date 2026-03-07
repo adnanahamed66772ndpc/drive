@@ -304,6 +304,35 @@ const deleteFile = async (storage_id, path) => {
 }
 
 /////////////////////////////////////////////////////////////
+////  BACKUP & RESTORE
+/////////////////////////////////////////////////////////////
+
+/**
+ * Download database backup as SQL file
+ * @returns {Promise<Blob>}
+ */
+const downloadBackup = async () => {
+	const response = await apiRequest(
+		'/backup/download',
+		'get',
+		getAuthToken(),
+		undefined,
+		true
+	)
+	return await response.blob()
+}
+
+/**
+ * Restore database from backup SQL file
+ * @param {File} file - .sql backup file
+ */
+const restoreBackup = async (file) => {
+	const form = new FormData()
+	form.append('file', file)
+	return await apiMultipartRequest('/backup/restore', getAuthToken(), form)
+}
+
+/////////////////////////////////////////////////////////////
 ////  API
 /////////////////////////////////////////////////////////////
 
@@ -335,6 +364,10 @@ const API = {
 		getFSLayer,
 		download,
 		deleteFile,
+	},
+	backup: {
+		downloadBackup,
+		restoreBackup,
 	},
 }
 

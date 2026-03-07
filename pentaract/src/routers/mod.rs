@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod backup;
 pub mod files;
 pub mod storage_workers;
 pub mod storages;

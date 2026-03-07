@@ -35,7 +35,7 @@ const apiRequest = async (
 	try {
 		const response = await fetch(fullpath, {
 			method,
-			body: JSON.stringify(body),
+			body: body !== undefined ? JSON.stringify(body) : undefined,
 			headers,
 		})
 
