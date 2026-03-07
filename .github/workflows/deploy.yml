@@ -1,0 +1,97 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare SSH key
+        id: sshkey
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > "$GITHUB_WORKSPACE/deploy_key"
+          chmod 600 "$GITHUB_WORKSPACE/deploy_key"
+          [ -s "$GITHUB_WORKSPACE/deploy_key" ] && echo "has_key=true" >> $GITHUB_OUTPUT || echo "has_key=false" >> $GITHUB_OUTPUT
+
+      - name: Deploy to VPS (install Docker, clone/pull, build & run)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key_path: ${{ steps.sshkey.outputs.has_key == 'true' && format('{0}/deploy_key', github.workspace) || '' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script_stop: true
+          timeout: 180s
+          command_timeout: 25m
+          script: |
+            set -e
+            DEPLOY_PATH="${{ secrets.DEPLOY_PATH || '/var/www/drive' }}"
+            REPO_URL="${{ secrets.REPO_URL || 'https://github.com/adnanahamed66772ndpc/drive.git' }}"
+
+            echo "=== Step 1: Ensure Docker and Git ==="
+            sudo -n true 2>/dev/null || { echo "Need passwordless sudo. On VPS run: sudo visudo and add: $USER ALL=(ALL) NOPASSWD:ALL"; exit 1; }
+            if ! command -v docker >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
+              export DEBIAN_FRONTEND=noninteractive
+              sudo -E apt-get update -qq
+              sudo -E apt-get install -y docker.io docker-compose-plugin git || sudo -E apt-get install -y docker.io docker-compose git
+              sudo usermod -aG docker $USER 2>/dev/null || true
+            fi
+            echo "Step 1 done."
+
+            echo "=== Step 2: Clone or pull repo ==="
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              sudo mkdir -p "$(dirname "$DEPLOY_PATH")"
+              sudo git clone "$REPO_URL" "$DEPLOY_PATH"
+            fi
+            sudo chown -R $USER:$USER "$DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
+            git fetch origin
+            git reset --hard origin/main
+            git pull origin main
+            echo "Step 2 done."
+
+            echo "=== Step 3: Create .env from secrets ==="
+            {
+              echo "PORT=${{ secrets.PORT || '8000' }}"
+              echo "WORKERS=${{ secrets.WORKERS || '4' }}"
+              echo "CHANNEL_CAPACITY=${{ secrets.CHANNEL_CAPACITY || '32' }}"
+              echo "SUPERUSER_EMAIL=${{ secrets.SUPERUSER_EMAIL }}"
+              echo "SUPERUSER_PASS=${{ secrets.SUPERUSER_PASS }}"
+              echo "ACCESS_TOKEN_EXPIRE_IN_SECS=${{ secrets.ACCESS_TOKEN_EXPIRE_IN_SECS || '1800' }}"
+              echo "REFRESH_TOKEN_EXPIRE_IN_DAYS=${{ secrets.REFRESH_TOKEN_EXPIRE_IN_DAYS || '14' }}"
+              echo "SECRET_KEY=${{ secrets.SECRET_KEY }}"
+              echo "TELEGRAM_API_BASE_URL=${{ secrets.TELEGRAM_API_BASE_URL || 'https://api.telegram.org' }}"
+              echo "DATABASE_USER=${{ secrets.DATABASE_USER || 'pentaract' }}"
+              echo "DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}"
+              echo "DATABASE_NAME=${{ secrets.DATABASE_NAME || 'pentaract' }}"
+              echo "DATABASE_HOST=db"
+              echo "DATABASE_PORT=5432"
+            } > .env
+            echo "Step 3 done."
+
+            echo "=== Step 4: Build and run with Docker ==="
+            sudo systemctl start docker 2>/dev/null || true
+            sleep 2
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              if sudo docker info >/dev/null 2>&1; then echo "Docker daemon ready."; break; fi
+              echo "Waiting for Docker daemon... ($i/10)"
+              sleep 3
+            done
+            if ! sudo docker info >/dev/null 2>&1; then
+              echo "Docker daemon not ready. Run on VPS: sudo systemctl start docker"
+              exit 1
+            fi
+            export DOCKER_BUILDKIT=1
+            if sudo docker compose version >/dev/null 2>&1; then COMPOSE="docker compose"; elif command -v docker-compose >/dev/null 2>&1; then COMPOSE="docker-compose"; else COMPOSE="docker compose"; fi
+            echo "Using: $COMPOSE"
+            df -h .
+            echo "Building and starting containers..."
+            sudo $COMPOSE up -d --build
+            echo "Step 4 done."
+
+            echo "=== Deploy finished ==="
+            sudo $COMPOSE ps
