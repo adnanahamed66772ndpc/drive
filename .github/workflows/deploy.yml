@@ -37,7 +37,7 @@ jobs:
             if ! command -v docker >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
               export DEBIAN_FRONTEND=noninteractive
               sudo -E apt-get update -qq
-              sudo -E apt-get install -y docker.io docker-compose-plugin git || sudo -E apt-get install -y docker.io docker-compose git
+              sudo -E apt-get install -y docker.io docker-compose git
               sudo usermod -aG docker $USER 2>/dev/null || true
             fi
             echo "Step 1 done."
@@ -89,9 +89,9 @@ jobs:
             if sudo docker compose version >/dev/null 2>&1; then COMPOSE="docker compose"; elif command -v docker-compose >/dev/null 2>&1; then COMPOSE="docker-compose"; else COMPOSE="docker compose"; fi
             echo "Using: $COMPOSE"
             df -h .
-            echo "Building and starting containers..."
-            sudo $COMPOSE up -d --build
+            echo "Pulling pre-built image and starting containers (no build)..."
+            sudo $COMPOSE -f docker-compose.deploy.yml up -d --force-recreate
             echo "Step 4 done."
 
             echo "=== Deploy finished ==="
-            sudo $COMPOSE ps
+            sudo $COMPOSE -f docker-compose.deploy.yml ps
