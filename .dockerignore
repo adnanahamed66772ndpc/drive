@@ -1,0 +1,23 @@
+# Git
+.git
+.github
+
+# Rust (we copy pentaract/ explicitly; avoid local target)
+**/target
+
+# UI
+ui/node_modules
+ui/dist
+ui/.vite
+
+# Docs / dev
+*.md
+docs
+scripts
+Makefile
+.env*
+*.local
+
+# Misc
+.DS_Store
+*.log

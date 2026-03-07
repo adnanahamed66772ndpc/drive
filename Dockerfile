@@ -30,7 +30,7 @@ WORKDIR /app
 COPY ./ui .
 RUN npm install -g pnpm
 RUN pnpm i
-ENV VITE_API_BASE /api
+ENV VITE_API_BASE=/api
 RUN pnpm run build
 
 ############################################################################################
