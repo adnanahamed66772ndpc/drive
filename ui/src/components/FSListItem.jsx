@@ -11,17 +11,25 @@ import FolderIcon from '@suid/icons-material/Folder'
 import MoreVertIcon from '@suid/icons-material/MoreVert'
 import DownloadIcon from '@suid/icons-material/Download'
 import VisibilityIcon from '@suid/icons-material/Visibility'
+import ImageIcon from '@suid/icons-material/Image'
 import InfoIcon from '@suid/icons-material/Info'
 import DeleteIcon from '@suid/icons-material/Delete'
+import ClearIcon from '@suid/icons-material/Clear'
 import { createSignal, onCleanup, Show } from 'solid-js'
 import { useNavigate, useParams } from '@solidjs/router'
 
 import API from '../api'
-import { isImageFile } from '../common/fileTypes'
+import { isImageFile, isVideoFile } from '../common/fileTypes'
+import {
+	getCustomThumbnail,
+	setCustomThumbnail,
+	clearCustomThumbnail,
+} from '../common/customThumbnailStore'
 import ActionConfirmDialog from './ActionConfirmDialog'
 import FileInfoDialog from './FileInfo'
 import FilePreviewDialog from './FilePreviewDialog'
 import FileThumbnail from './FileThumbnail'
+import VideoThumbnail from './VideoThumbnail'
 
 /**
  * @typedef {Object} FSListItemProps
@@ -41,8 +49,14 @@ const FSListItem = (props) => {
 		createSignal(false)
 	const [isInfoDialogOpened, setIsInfoDialogOpened] = createSignal(false)
 	const [isPreviewDialogOpened, setIsPreviewDialogOpened] = createSignal(false)
+	const [thumbVersion, setThumbVersion] = createSignal(0)
 	const navigate = useNavigate()
 	const params = useParams()
+
+	const customThumb = () => {
+		thumbVersion()
+		return getCustomThumbnail(props.storageId, props.fsElement.path)
+	}
 
 	const openMore = () => Boolean(moreAnchorEl())
 
@@ -88,7 +102,33 @@ const FSListItem = (props) => {
 
 	const isImage = () =>
 		props.fsElement.is_file && isImageFile(props.fsElement.name)
+	const isVideo = () =>
+		props.fsElement.is_file && isVideoFile(props.fsElement.name)
 	const ICON_SIZE = 80
+
+	let setThumbInputEl
+	const openSetThumbnail = () => {
+		handleCloseMore()
+		setThumbInputEl?.click()
+	}
+	const onSetThumbnailChange = (e) => {
+		const file = e.target.files?.[0]
+		e.target.value = ''
+		if (!file || !file.type.startsWith('image/')) return
+		const reader = new FileReader()
+		reader.onload = () => {
+			const dataUrl = reader.result
+			if (setCustomThumbnail(props.storageId, props.fsElement.path, dataUrl)) {
+				setThumbVersion((v) => v + 1)
+			}
+		}
+		reader.readAsDataURL(file)
+	}
+	const clearThumbnail = () => {
+		handleCloseMore()
+		clearCustomThumbnail(props.storageId, props.fsElement.path)
+		setThumbVersion((v) => v + 1)
+	}
 
 	return (
 		<>
@@ -123,49 +163,71 @@ const FSListItem = (props) => {
 					}}
 				>
 					<Box sx={{ position: 'relative' }}>
+						<Show when={customThumb()}>
+							<Box
+								component="img"
+								src={customThumb()}
+								alt=""
+								sx={{
+									width: ICON_SIZE,
+									height: ICON_SIZE,
+									objectFit: 'cover',
+									borderRadius: 1,
+								}}
+							/>
+						</Show>
+						<Show when={!customThumb() && !props.fsElement.is_file}>
+							<Box
+								sx={{
+									width: ICON_SIZE,
+									height: ICON_SIZE,
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									bgcolor: 'action.hover',
+									borderRadius: 1,
+								}}
+							>
+								<FolderIcon sx={{ fontSize: 48 }} color="primary" />
+							</Box>
+						</Show>
+						<Show when={!customThumb() && props.fsElement.is_file && isImage()}>
+							<FileThumbnail
+								storageId={props.storageId}
+								path={props.fsElement.path}
+								fileName={props.fsElement.name}
+								size={ICON_SIZE}
+							/>
+						</Show>
+						<Show when={!customThumb() && props.fsElement.is_file && isVideo()}>
+							<VideoThumbnail
+								storageId={props.storageId}
+								path={props.fsElement.path}
+								fileName={props.fsElement.name}
+								size={ICON_SIZE}
+							/>
+						</Show>
 						<Show
-							when={props.fsElement.is_file}
-							fallback={
-								<Box
-									sx={{
-										width: ICON_SIZE,
-										height: ICON_SIZE,
-										display: 'flex',
-										alignItems: 'center',
-										justifyContent: 'center',
-										bgcolor: 'action.hover',
-										borderRadius: 1,
-									}}
-								>
-									<FolderIcon sx={{ fontSize: 48 }} color="primary" />
-								</Box>
+							when={
+								!customThumb() &&
+								props.fsElement.is_file &&
+								!isImage() &&
+								!isVideo()
 							}
 						>
-							<Show
-								when={isImage()}
-								fallback={
-									<Box
-										sx={{
-											width: ICON_SIZE,
-											height: ICON_SIZE,
-											display: 'flex',
-											alignItems: 'center',
-											justifyContent: 'center',
-											bgcolor: 'action.hover',
-											borderRadius: 1,
-										}}
-									>
-										<FileIcon sx={{ fontSize: 48 }} color="action" />
-									</Box>
-								}
+							<Box
+								sx={{
+									width: ICON_SIZE,
+									height: ICON_SIZE,
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									bgcolor: 'action.hover',
+									borderRadius: 1,
+								}}
 							>
-								<FileThumbnail
-									storageId={props.storageId}
-									path={props.fsElement.path}
-									fileName={props.fsElement.name}
-									size={ICON_SIZE}
-								/>
-							</Show>
+								<FileIcon sx={{ fontSize: 48 }} color="action" />
+							</Box>
 						</Show>
 					</Box>
 					<Typography
@@ -233,7 +295,28 @@ const FSListItem = (props) => {
 					</ListItemIcon>
 					<ListItemText>Delete</ListItemText>
 				</MenuItem>
+				<MenuItem onClick={openSetThumbnail}>
+					<ListItemIcon>
+						<ImageIcon fontSize="small" />
+					</ListItemIcon>
+					<ListItemText>Set thumbnail / icon</ListItemText>
+				</MenuItem>
+				<Show when={customThumb()}>
+					<MenuItem onClick={clearThumbnail}>
+						<ListItemIcon>
+							<ClearIcon fontSize="small" />
+						</ListItemIcon>
+						<ListItemText>Clear thumbnail</ListItemText>
+					</MenuItem>
+				</Show>
 			</MenuMUI>
+			<input
+				ref={(el) => (setThumbInputEl = el)}
+				type="file"
+				accept="image/*"
+				style="display: none"
+				onChange={onSetThumbnailChange}
+			/>
 
 			<ActionConfirmDialog
 				action="Delete"
