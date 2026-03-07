@@ -9,6 +9,7 @@ import FileIcon from '@suid/icons-material/InsertDriveFileOutlined'
 import FolderIcon from '@suid/icons-material/Folder'
 import MoreVertIcon from '@suid/icons-material/MoreVert'
 import DownloadIcon from '@suid/icons-material/Download'
+import VisibilityIcon from '@suid/icons-material/Visibility'
 import InfoIcon from '@suid/icons-material/Info'
 import DeleteIcon from '@suid/icons-material/Delete'
 import { createSignal } from 'solid-js'
@@ -17,6 +18,7 @@ import { useNavigate, useParams } from '@solidjs/router'
 import API from '../api'
 import ActionConfirmDialog from './ActionConfirmDialog'
 import FileInfoDialog from './FileInfo'
+import FilePreviewDialog from './FilePreviewDialog'
 
 /**
  * @typedef {Object} FSListItemProps
@@ -35,6 +37,7 @@ const FSListItem = (props) => {
 	const [isActionConfirmDialogOpened, setIsActionConfirmDialogOpened] =
 		createSignal(false)
 	const [isInfoDialogOpened, setIsInfoDialogOpened] = createSignal(false)
+	const [isPreviewDialogOpened, setIsPreviewDialogOpened] = createSignal(false)
 	const navigate = useNavigate()
 	const params = useParams()
 
@@ -113,6 +116,19 @@ const FSListItem = (props) => {
 					<ListItemText>Info</ListItemText>
 				</MenuItem>
 
+				<MenuItem
+					onClick={() => {
+						handleCloseMore()
+						setIsPreviewDialogOpened(true)
+					}}
+					disabled={!props.fsElement.is_file}
+				>
+					<ListItemIcon>
+						<VisibilityIcon fontSize="small" />
+					</ListItemIcon>
+					<ListItemText>Preview</ListItemText>
+				</MenuItem>
+
 				<MenuItem onClick={download} disabled={!props.fsElement.is_file}>
 					<ListItemIcon>
 						<DownloadIcon fontSize="small" />
@@ -141,6 +157,14 @@ const FSListItem = (props) => {
 				file={props.fsElement}
 				isOpened={isInfoDialogOpened()}
 				onClose={() => setIsInfoDialogOpened(false)}
+			/>
+
+			<FilePreviewDialog
+				fileName={props.fsElement.name}
+				storageId={params.id}
+				path={props.fsElement.path}
+				isOpened={isPreviewDialogOpened()}
+				onClose={() => setIsPreviewDialogOpened(false)}
 			/>
 		</>
 	)
