@@ -80,7 +80,7 @@ impl<'d> StorageManagerService<'d> {
     ) -> PentaractResult<FileChunk> {
         let scheduler = StorageWorkersScheduler::new(self.db, self.rate_limit);
 
-        let document = TelegramBotApi::new(self.telegram_baseurl, scheduler)
+        let (document, message_id) = TelegramBotApi::new(self.telegram_baseurl, scheduler)
             .upload(bytes_chunk, chat_id, storage_id)
             .await?;
 
@@ -90,7 +90,13 @@ impl<'d> StorageManagerService<'d> {
             position
         );
 
-        let chunk = FileChunk::new(Uuid::new_v4(), file_id, document.file_id, position as i16);
+        let chunk = FileChunk::new(
+            Uuid::new_v4(),
+            file_id,
+            document.file_id,
+            Some(message_id),
+            position as i16,
+        );
         Ok(chunk)
     }
 
@@ -133,5 +139,27 @@ impl<'d> StorageManagerService<'d> {
         );
 
         Ok(file)
+    }
+
+    pub async fn delete_chunks(&self, file_id: Uuid) -> PentaractResult<()> {
+        let chunks = self.files_repo.list_chunks_of_file(file_id).await?;
+        let storage = self.storages_repo.get_by_file_id(file_id).await?;
+
+        for chunk in chunks {
+            if let Some(msg_id) = chunk.telegram_message_id {
+                let scheduler = StorageWorkersScheduler::new(self.db, self.rate_limit);
+                if let Err(e) = TelegramBotApi::new(self.telegram_baseurl, scheduler)
+                    .delete_message(storage.chat_id, msg_id, storage.id)
+                    .await
+                {
+                    tracing::warn!(
+                        "[TELEGRAM API] failed to delete chunk message {}: {}",
+                        msg_id, e
+                    );
+                }
+            }
+        }
+
+        Ok(())
     }
 }

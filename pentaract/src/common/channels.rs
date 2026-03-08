@@ -15,6 +15,11 @@ pub struct ClientMessage {
 pub enum ClientData {
     UploadFile(UploadFileData),
     DownloadFile(DownloadFileData),
+    DeleteChunks(DeleteChunksData),
+}
+
+pub struct DeleteChunksData {
+    pub file_id: Uuid,
 }
 
 pub struct UploadFileData {
@@ -45,6 +50,7 @@ impl StorageManagerMessage {
 pub enum StorageManagerData {
     UploadFile(PentaractResult<()>),
     DownloadFile(PentaractResult<Vec<u8>>),
+    DeleteChunks(PentaractResult<()>),
 }
 
 //////////////////////////////////////

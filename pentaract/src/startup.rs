@@ -134,6 +134,7 @@ pub async fn init_db(db: &PgPool) {
             dt                 TIMESTAMP DEFAULT NOW()
         );
     ",
+        "ALTER TABLE file_chunks ADD COLUMN IF NOT EXISTS telegram_message_id BigInt;",
         r#"
         CREATE OR REPLACE FUNCTION public.regexp_quote(IN TEXT)
             RETURNS TEXT

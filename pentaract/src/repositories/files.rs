@@ -169,13 +169,14 @@ impl<'d> FilesRepository<'d> {
 
     pub async fn create_chunks_batch(&self, chunks: Vec<FileChunk>) -> PentaractResult<()> {
         QueryBuilder::new(
-            format!("INSERT INTO {CHUNKS_TABLE} (id, file_id, telegram_file_id, position)")
+            format!("INSERT INTO {CHUNKS_TABLE} (id, file_id, telegram_file_id, telegram_message_id, position)")
                 .as_str(),
         )
         .push_values(chunks, |mut q, chunk| {
             q.push_bind(chunk.id)
                 .push_bind(chunk.file_id)
                 .push_bind(chunk.telegram_file_id)
+                .push_bind(chunk.telegram_message_id)
                 .push_bind(chunk.position);
         })
         .build()
@@ -276,6 +277,27 @@ impl<'d> FilesRepository<'d> {
             tracing::error!("{e}");
             PentaractError::Unknown
         })
+    }
+
+    pub async fn list_file_ids_by_path(
+        &self,
+        path: &str,
+        storage_id: Uuid,
+    ) -> PentaractResult<Vec<Uuid>> {
+        let where_path = if path.ends_with('/') {
+            "path LIKE $2 || '%'"
+        } else {
+            "path = $2"
+        };
+        let rows = sqlx::query_scalar::<_, Uuid>(&format!(
+            "SELECT id FROM {FILES_TABLE} WHERE storage_id = $1 AND {where_path}"
+        ))
+        .bind(storage_id)
+        .bind(path)
+        .fetch_all(self.db)
+        .await
+        .map_err(|e| map_not_found(e, "files"))?;
+        Ok(rows)
     }
 
     pub async fn get_file_by_path(&self, path: &str, storage_id: Uuid) -> PentaractResult<File> {

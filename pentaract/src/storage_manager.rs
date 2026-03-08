@@ -2,8 +2,8 @@ use sqlx::PgPool;
 
 use crate::{
     common::channels::{
-        ClientData, ClientMessage, DownloadFileData, StorageManagerData, StorageManagerListener,
-        StorageManagerMessage, UploadFileData,
+        ClientData, ClientMessage, DeleteChunksData, DownloadFileData, StorageManagerData,
+        StorageManagerListener, StorageManagerMessage, UploadFileData,
     },
     config::Config,
     services::storage_manager::StorageManagerService,
@@ -33,6 +33,7 @@ impl StorageManager {
         let result = match msg.data {
             ClientData::UploadFile(data) => self.upload(data).await,
             ClientData::DownloadFile(data) => self.download(data).await,
+            ClientData::DeleteChunks(data) => self.delete_chunks(data).await,
         };
         let msg_back = StorageManagerMessage::new(result);
 
@@ -61,5 +62,17 @@ impl StorageManager {
         .await;
 
         StorageManagerData::DownloadFile(result)
+    }
+
+    async fn delete_chunks(&self, data: DeleteChunksData) -> StorageManagerData {
+        let result = StorageManagerService::new(
+            &self.db,
+            &self.config.telegram_api_base_url,
+            self.config.telegram_rate_limit,
+        )
+        .delete_chunks(data.file_id)
+        .await;
+
+        StorageManagerData::DeleteChunks(result)
     }
 }

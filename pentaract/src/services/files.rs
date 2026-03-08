@@ -7,8 +7,8 @@ use crate::{
     common::{
         access::check_access,
         channels::{
-            ClientData, ClientMessage, ClientSender, DownloadFileData, StorageManagerData,
-            UploadFileData,
+            ClientData, ClientMessage, ClientSender, DeleteChunksData, DownloadFileData,
+            StorageManagerData, UploadFileData,
         },
         jwt_manager::AuthUser,
     },
@@ -278,7 +278,24 @@ impl<'d> FilesService<'d> {
             return Err(PentaractError::InvalidPath);
         }
 
-        // 2. deleting file
+        // 2. delete chunks from Telegram (only files with chunks)
+        let file_ids = self.repo.list_file_ids_by_path(path, storage_id).await?;
+        for file_id in file_ids {
+            let (resp_tx, resp_rx) = oneshot::channel();
+            let message = ClientMessage {
+                data: ClientData::DeleteChunks(DeleteChunksData { file_id }),
+                tx: resp_tx,
+            };
+            if self.tx.send(message).await.is_ok() {
+                if let Ok(reply) = resp_rx.await {
+                    if let StorageManagerData::DeleteChunks(Err(e)) = reply.data {
+                        tracing::warn!("delete chunks for file {}: {}", file_id, e);
+                    }
+                }
+            }
+        }
+
+        // 3. deleting from db
         self.repo.delete(path, storage_id).await
     }
 

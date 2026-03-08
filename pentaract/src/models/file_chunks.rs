@@ -5,6 +5,7 @@ pub struct FileChunk {
     pub id: uuid::Uuid,
     pub file_id: uuid::Uuid,
     pub telegram_file_id: String,
+    pub telegram_message_id: Option<i64>,
     pub position: Position,
 }
 
@@ -13,12 +14,14 @@ impl FileChunk {
         id: uuid::Uuid,
         file_id: uuid::Uuid,
         telegram_file_id: String,
+        telegram_message_id: Option<i64>,
         position: Position,
     ) -> Self {
         Self {
             id,
             file_id,
             telegram_file_id,
+            telegram_message_id,
             position,
         }
     }

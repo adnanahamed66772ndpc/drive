@@ -26,7 +26,7 @@ impl<'t> TelegramBotApi<'t> {
         file: &[u8],
         chat_id: ChatId,
         storage_id: Uuid,
-    ) -> PentaractResult<UploadSchema> {
+    ) -> PentaractResult<(UploadSchema, i64)> {
         let chat_id = {
             // inserting 100 between minus sign and chat id
             // cause telegram devs are complete retards and it works this way only
@@ -52,8 +52,10 @@ impl<'t> TelegramBotApi<'t> {
             .await?;
 
         match response.error_for_status() {
-            // https://stackoverflow.com/a/32679930/12255756
-            Ok(r) => Ok(r.json::<UploadBodySchema>().await?.result.document),
+            Ok(r) => {
+                let body = r.json::<UploadBodySchema>().await?;
+                Ok((body.result.document, body.result.message_id))
+            }
             Err(e) => Err(e.into()),
         }
     }
@@ -85,6 +87,33 @@ impl<'t> TelegramBotApi<'t> {
             .map(|file| file.to_vec())?;
 
         Ok(file)
+    }
+
+    pub async fn delete_message(
+        &self,
+        chat_id: ChatId,
+        message_id: i64,
+        storage_id: Uuid,
+    ) -> PentaractResult<()> {
+        let chat_id = {
+            let n = chat_id.abs().checked_ilog10().unwrap_or(0) + 1;
+            chat_id - (100 * ChatId::from(10).pow(n))
+        };
+
+        let token = self.scheduler.get_token(storage_id).await?;
+        let url = self.build_url("", "deleteMessage", token);
+
+        let params = [("chat_id", chat_id.to_string()), ("message_id", message_id.to_string())];
+        let response = reqwest::Client::new()
+            .post(url)
+            .form(&params)
+            .send()
+            .await?;
+
+        match response.error_for_status() {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Taking token by a value to force dropping it so it can be used only once

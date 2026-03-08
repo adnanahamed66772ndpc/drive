@@ -7,6 +7,7 @@ pub struct UploadBodySchema {
 
 #[derive(Deserialize)]
 pub struct UploadResultSchema {
+    pub message_id: i64,
     pub document: UploadSchema,
 }
 

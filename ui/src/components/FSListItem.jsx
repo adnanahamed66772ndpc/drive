@@ -94,9 +94,13 @@ const FSListItem = (props) => {
 		setIsActionConfirmDialogOpened(false)
 	}
 
-	const deleteFile = async () => {
+	const deleteItem = async () => {
 		closeActionConfirmDialog()
-		await API.files.deleteFile(params.id, props.fsElement.path)
+		const path =
+			props.fsElement.is_file || props.fsElement.path.endsWith('/')
+				? props.fsElement.path
+				: props.fsElement.path + '/'
+		await API.files.deleteFile(params.id, path)
 		props.onDelete()
 	}
 
@@ -320,10 +324,10 @@ const FSListItem = (props) => {
 
 			<ActionConfirmDialog
 				action="Delete"
-				entity="file"
-				actionDescription={`delete file ${props.fsElement.name}`}
+				entity={props.fsElement.is_file ? 'file' : 'folder'}
+				actionDescription={`delete ${props.fsElement.is_file ? 'file' : 'folder'} ${props.fsElement.name}${props.fsElement.is_file ? '' : ' and its contents'}`}
 				isOpened={isActionConfirmDialogOpened()}
-				onConfirm={deleteFile}
+				onConfirm={deleteItem}
 				onCancel={closeActionConfirmDialog}
 			/>
 
