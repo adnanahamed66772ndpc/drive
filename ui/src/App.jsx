@@ -3,6 +3,7 @@ import { ThemeProvider, createTheme } from '@suid/material'
 
 import Login from './pages/Login'
 import BasicLayout from './layouts/Basic'
+import AllFolders from './pages/AllFolders'
 import Storages from './pages/Storages'
 import StorageCreateForm from './pages/Storages/StorageCreateForm'
 import AlertStack from './components/AlertStack'
@@ -33,7 +34,8 @@ const App = () => {
 				<Route path="/register" component={Register} />
 
 				<Route path="/" component={BasicLayout}>
-					<Route path="/" element={<Navigate href="/storages" />} />
+					<Route path="/" element={<Navigate href="/folders" />} />
+					<Route path="/folders" component={AllFolders} />
 					<Route path="/storages" component={Storages} />
 					<Route path="/storages/register" component={StorageCreateForm} />
 					<Route path="/storages/:id/files/*path" component={Files} />

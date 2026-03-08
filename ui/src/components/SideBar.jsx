@@ -7,6 +7,7 @@ import ChevronRightIcon from '@suid/icons-material/ChevronRight'
 import ListItem from '@suid/material/ListItem'
 import ListItemButton from '@suid/material/ListItemButton'
 import { createSignal } from 'solid-js'
+import FolderIcon from '@suid/icons-material/Folder'
 import StorageIcon from '@suid/icons-material/Storage'
 import SmartToyIcon from '@suid/icons-material/SmartToyOutlined'
 import BackupIcon from '@suid/icons-material/Backup'
@@ -50,6 +51,9 @@ const SideBar = () => {
 			</List>
 			<Divider />
 			<List>
+				<SideBarItem text="All folders" link="/folders" isFull={open()}>
+					<FolderIcon />
+				</SideBarItem>
 				<SideBarItem text="Storages" link="/storages" isFull={open()}>
 					<StorageIcon />
 				</SideBarItem>
