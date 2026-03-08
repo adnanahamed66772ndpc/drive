@@ -23,7 +23,8 @@ use crate::{
     errors::{PentaractError, PentaractResult},
     models::files::InFile,
     schemas::files::{
-        InFileSchema, InFolderSchema, SearchQuery, UploadParams, IN_FILE_SCHEMA_FIELDS_AMOUNT,
+        InFileSchema, InFolderSchema, RenameParams, SearchQuery, UploadParams,
+        IN_FILE_SCHEMA_FIELDS_AMOUNT,
     },
     services::files::FilesService,
 };
@@ -41,6 +42,7 @@ impl FilesRouter {
     pub fn get_router(state: Arc<AppState>) -> Router<Arc<AppState>, axum::body::Body> {
         Router::new()
             .route("/create_folder", post(Self::create_folder))
+            .route("/rename", post(Self::rename))
             .route("/upload", post(Self::upload))
             .route("/upload_to", post(Self::upload_to))
             .route("/*path", get(Self::dynamic_get).delete(Self::delete))
@@ -181,6 +183,18 @@ impl FilesRouter {
             .create_folder(in_schema, &user)
             .await?;
         Ok(StatusCode::CREATED)
+    }
+
+    async fn rename(
+        State(state): State<Arc<AppState>>,
+        Extension(user): Extension<AuthUser>,
+        RoutePath(storage_id): RoutePath<Uuid>,
+        Json(params): Json<RenameParams>,
+    ) -> Result<StatusCode, (StatusCode, String)> {
+        FilesService::new(&state.db, state.tx.clone())
+            .rename(&params.old_path, &params.new_path, storage_id, &user)
+            .await?;
+        Ok(StatusCode::NO_CONTENT)
     }
 
     #[inline]

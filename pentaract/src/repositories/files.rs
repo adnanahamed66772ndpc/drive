@@ -341,14 +341,14 @@ impl<'d> FilesRepository<'d> {
                 "
                 UPDATE {FILES_TABLE}
                 SET path = $1 || SUBSTRING(path, {chars_skip})
-                WHERE storage_id = $2 AND path LIKE $3 || '%'
+                WHERE storage_id = $2 AND (path = $3 OR path LIKE $3 || '%')
             "
             )
             .as_str(),
         )
         .bind(new_path)
-        .bind(old_path)
         .bind(storage_id)
+        .bind(old_path)
         .execute(self.db)
         .await
         .map_err(|_| PentaractError::Unknown)

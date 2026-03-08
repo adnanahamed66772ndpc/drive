@@ -15,6 +15,7 @@ import ImageIcon from '@suid/icons-material/Image'
 import InfoIcon from '@suid/icons-material/Info'
 import DeleteIcon from '@suid/icons-material/Delete'
 import ClearIcon from '@suid/icons-material/Clear'
+import DriveFileRenameOutlineIcon from '@suid/icons-material/DriveFileRenameOutline'
 import { createSignal, onCleanup, Show } from 'solid-js'
 import { useNavigate, useParams } from '@solidjs/router'
 
@@ -27,6 +28,7 @@ import {
 	clearCustomThumbnail,
 } from '../common/customThumbnailStore'
 import ActionConfirmDialog from './ActionConfirmDialog'
+import RenameDialog from './RenameDialog'
 import FileInfoDialog from './FileInfo'
 import FilePreviewDialog from './FilePreviewDialog'
 import FileThumbnail from './FileThumbnail'
@@ -36,7 +38,9 @@ import VideoThumbnail from './VideoThumbnail'
  * @typedef {Object} FSListItemProps
  * @property {import("../api").FSElement} fsElement
  * @property {string} storageId
- * @property {() => {}} onDelete
+ * @property {() => void} onDelete
+ * @property {() => void} [onRename]
+ * @property {'grid' | 'list'} [view]
  */
 
 /**
@@ -46,8 +50,10 @@ import VideoThumbnail from './VideoThumbnail'
  */
 const FSListItem = (props) => {
 	const [moreAnchorEl, setMoreAnchorEl] = createSignal(null)
+	const [contextMenuPos, setContextMenuPos] = createSignal(null)
 	const [isActionConfirmDialogOpened, setIsActionConfirmDialogOpened] =
 		createSignal(false)
+	const [isRenameDialogOpened, setIsRenameDialogOpened] = createSignal(false)
 	const [isInfoDialogOpened, setIsInfoDialogOpened] = createSignal(false)
 	const [isPreviewDialogOpened, setIsPreviewDialogOpened] = createSignal(false)
 	const [thumbVersion, setThumbVersion] = createSignal(0)
@@ -60,10 +66,12 @@ const FSListItem = (props) => {
 	}
 
 	const openMore = () => Boolean(moreAnchorEl())
+	const openContextMenu = () => contextMenuPos() !== null
 
 	const handleCloseMore = () => {
 		setMoreAnchorEl(null)
 	}
+	const handleCloseContextMenu = () => setContextMenuPos(null)
 
 	const handleNavigate = () => {
 		if (!props.fsElement.is_file) {
@@ -110,7 +118,7 @@ const FSListItem = (props) => {
 		props.fsElement.is_file && isImageFile(props.fsElement.name)
 	const isVideo = () =>
 		props.fsElement.is_file && isVideoFile(props.fsElement.name)
-	const ICON_SIZE = 80
+	const ICON_SIZE = () => (props.view === 'list' ? 40 : 80)
 
 	let setThumbInputEl
 	const openSetThumbnail = () => {
@@ -136,15 +144,50 @@ const FSListItem = (props) => {
 		setThumbVersion((v) => v + 1)
 	}
 
+	const openRenameDialog = () => {
+		handleCloseMore()
+		handleCloseContextMenu()
+		setIsRenameDialogOpened(true)
+	}
+
+	const closeRenameDialog = () => setIsRenameDialogOpened(false)
+
+	const renameItem = async (newName) => {
+		closeRenameDialog()
+		if (!props.onRename) return
+		const oldPath = props.fsElement.path
+		const basePath = oldPath.replace(/[^/]+\/?$/, '') || ''
+		const newPath = props.fsElement.is_file
+			? basePath + newName.trim()
+			: basePath + newName.trim() + '/'
+		await props.onRename(oldPath, newPath)
+	}
+
+	const handleContextMenu = (e) => {
+		e.preventDefault()
+		if (props.fsElement.name === '..') return
+		setContextMenuPos({ x: e.clientX, y: e.clientY })
+	}
+
+	const openMenu = (e) => {
+		e.stopPropagation()
+		if (props.fsElement.name === '..') return
+		setMoreAnchorEl(e.currentTarget)
+	}
+
+	const isListView = () => props.view === 'list'
+
 	return (
 		<>
 			<Paper
 				elevation={0}
+				onContextMenu={handleContextMenu}
 				sx={{
 					display: 'flex',
-					alignItems: 'flex-start',
+					flexDirection: isListView() ? 'row' : 'column',
+					alignItems: isListView() ? 'center' : 'flex-start',
 					gap: 0.5,
-					p: 1,
+					p: isListView() ? 0.5 : 1,
 					minWidth: 0,
 					borderRadius: 1,
 					'&:hover': { bgcolor: 'action.hover' },
@@ -162,21 +205,22 @@ const FSListItem = (props) => {
 						flex: 1,
 						minWidth: 0,
 						display: 'flex',
-						flexDirection: 'column',
-						alignItems: 'center',
+						flexDirection: isListView() ? 'row' : 'column',
+						alignItems: isListView() ? 'center' : 'center',
+						gap: isListView() ? 1.5 : 0,
 						cursor: 'pointer',
-						textAlign: 'center',
+						textAlign: isListView() ? 'left' : 'center',
 					}}
 				>
-					<Box sx={{ position: 'relative' }}>
+					<Box sx={{ position: 'relative', flexShrink: 0 }}>
 						<Show when={customThumb()}>
 							<Box
 								component="img"
 								src={customThumb()}
 								alt=""
 								sx={{
-									width: ICON_SIZE,
-									height: ICON_SIZE,
+									width: ICON_SIZE(),
+									height: ICON_SIZE(),
 									objectFit: 'cover',
 									borderRadius: 1,
 								}}
@@ -185,8 +229,8 @@ const FSListItem = (props) => {
 						<Show when={!customThumb() && !props.fsElement.is_file}>
 							<Box
 								sx={{
-									width: ICON_SIZE,
-									height: ICON_SIZE,
+									width: ICON_SIZE(),
+									height: ICON_SIZE(),
 									display: 'flex',
 									alignItems: 'center',
 									justifyContent: 'center',
@@ -194,7 +238,7 @@ const FSListItem = (props) => {
 									borderRadius: 1,
 								}}
 							>
-								<FolderIcon sx={{ fontSize: 48 }} color="primary" />
+								<FolderIcon sx={{ fontSize: ICON_SIZE() * 0.6 }} color="primary" />
 							</Box>
 						</Show>
 						<Show when={!customThumb() && props.fsElement.is_file && isImage()}>
@@ -202,7 +246,7 @@ const FSListItem = (props) => {
 								storageId={props.storageId}
 								path={props.fsElement.path}
 								fileName={props.fsElement.name}
-								size={ICON_SIZE}
+								size={ICON_SIZE()}
 							/>
 						</Show>
 						<Show when={!customThumb() && props.fsElement.is_file && isVideo()}>
@@ -210,7 +254,7 @@ const FSListItem = (props) => {
 								storageId={props.storageId}
 								path={props.fsElement.path}
 								fileName={props.fsElement.name}
-								size={ICON_SIZE}
+								size={ICON_SIZE()}
 							/>
 						</Show>
 						<Show
@@ -223,8 +267,8 @@ const FSListItem = (props) => {
 						>
 							<Box
 								sx={{
-									width: ICON_SIZE,
-									height: ICON_SIZE,
+									width: ICON_SIZE(),
+									height: ICON_SIZE(),
 									display: 'flex',
 									alignItems: 'center',
 									justifyContent: 'center',
@@ -232,42 +276,53 @@ const FSListItem = (props) => {
 									borderRadius: 1,
 								}}
 							>
-								<FileIcon sx={{ fontSize: 48 }} color="action" />
+								<FileIcon sx={{ fontSize: ICON_SIZE() * 0.6 }} color="action" />
 							</Box>
 						</Show>
 					</Box>
 					<Typography
 						variant="body2"
 						sx={{
-							mt: 0.5,
+							mt: isListView() ? 0 : 0.5,
 							px: 0.5,
 							overflow: 'hidden',
 							textOverflow: 'ellipsis',
 							whiteSpace: 'nowrap',
-							maxWidth: ICON_SIZE + 24,
+							maxWidth: isListView() ? 'none' : ICON_SIZE() + 24,
 						}}
 					>
 						{props.fsElement.name}
 					</Typography>
 				</Box>
-				<IconButton
-					size="small"
-					onClick={(e) => {
-						e.stopPropagation()
-						setMoreAnchorEl(e.currentTarget)
-					}}
-				>
-					<MoreVertIcon fontSize="small" />
-				</IconButton>
+				<Show when={props.fsElement.name !== '..'}>
+					<IconButton size="small" onClick={openMenu}					>
+						<MoreVertIcon fontSize="small" />
+					</IconButton>
+				</Show>
 			</Paper>
 
 			<MenuMUI
-				id="basic-menu"
+				id="context-menu"
 				anchorEl={moreAnchorEl()}
-				open={openMore()}
-				onClose={handleCloseMore}
+				anchorReference={contextMenuPos() ? 'anchorPosition' : 'anchorEl'}
+				anchorPosition={
+					contextMenuPos()
+						? { top: contextMenuPos().y, left: contextMenuPos().x }
+						: undefined
+				}
+				open={openMore() || openContextMenu()}
+				onClose={() => {
+					handleCloseMore()
+					handleCloseContextMenu()
+				}}
 				MenuListProps={{ 'aria-labelledby': 'basic-button' }}
 			>
+				<MenuItem onClick={openRenameDialog}>
+					<ListItemIcon>
+						<DriveFileRenameOutlineIcon fontSize="small" />
+					</ListItemIcon>
+					<ListItemText>Rename</ListItemText>
+				</MenuItem>
 				<MenuItem onClick={() => setIsInfoDialogOpened(true)}>
 					<ListItemIcon>
 						<InfoIcon fontSize="small" />
@@ -322,6 +377,14 @@ const FSListItem = (props) => {
 				accept="image/*"
 				style="display: none"
 				onChange={onSetThumbnailChange}
+			/>
+
+			<RenameDialog
+				isOpened={isRenameDialogOpened()}
+				currentName={props.fsElement.name}
+				entity={props.fsElement.is_file ? 'file' : 'folder'}
+				onRename={renameItem}
+				onClose={closeRenameDialog}
 			/>
 
 			<ActionConfirmDialog

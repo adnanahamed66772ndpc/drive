@@ -303,6 +303,21 @@ const deleteFile = async (storage_id, path) => {
 	)
 }
 
+/**
+ *
+ * @param {string} storage_id
+ * @param {string} old_path
+ * @param {string} new_path
+ */
+const renameFile = async (storage_id, old_path, new_path) => {
+	await apiRequest(
+		`/storages/${storage_id}/files/rename`,
+		'post',
+		getAuthToken(),
+		{ old_path, new_path }
+	)
+}
+
 /////////////////////////////////////////////////////////////
 ////  BACKUP & RESTORE
 /////////////////////////////////////////////////////////////
@@ -364,6 +379,7 @@ const API = {
 		getFSLayer,
 		download,
 		deleteFile,
+		renameFile,
 	},
 	backup: {
 		downloadBackup,

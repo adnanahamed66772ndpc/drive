@@ -1,22 +1,29 @@
 import { useBeforeLeave, useNavigate, useParams } from '@solidjs/router'
-import { Show, createSignal, mapArray, onCleanup, onMount } from 'solid-js'
+import { Show, createSignal, createMemo, mapArray, onCleanup, onMount } from 'solid-js'
 import MenuItem from '@suid/material/MenuItem'
 import ListItemIcon from '@suid/material/ListItemIcon'
 import ListItemText from '@suid/material/ListItemText'
 import UploadFileIcon from '@suid/icons-material/UploadFile'
-import UploadFolderIcon from '@suid/icons-material/DriveFolderUpload'
+import DriveFolderUploadIcon from '@suid/icons-material/DriveFolderUpload'
 import FolderOpenIcon from '@suid/icons-material/FolderOpen'
 import LockIcon from '@suid/icons-material/Lock'
 import Grid from '@suid/material/Grid'
 import Stack from '@suid/material/Stack'
 import Typography from '@suid/material/Typography'
-import Fab from '@suid/material/Fab'
 import ToggleButton from '@suid/material/ToggleButton'
 import ToggleButtonGroup from '@suid/material/ToggleButtonGroup'
+import Fab from '@suid/material/Fab'
 import AddIcon from '@suid/icons-material/Add'
+import ViewModuleIcon from '@suid/icons-material/ViewModule'
+import ViewListIcon from '@suid/icons-material/ViewList'
+import SearchIcon from '@suid/icons-material/Search'
+import InputAdornment from '@suid/material/InputAdornment'
+import TextField from '@suid/material/TextField'
+import Box from '@suid/material/Box'
 
 import API from '../../api'
 import FSListItem from '../../components/FSListItem'
+import Breadcrumbs from '../../components/Breadcrumbs'
 import Menu from '../../components/Menu'
 import CreateFolderDialog from '../../components/CreateFolderDialog'
 import { alertStore } from '../../components/AlertStack'
@@ -25,13 +32,7 @@ import GrantAccess from '../../components/GrantAccess'
 
 const Files = () => {
 	const { addAlert } = alertStore
-	/**
-	 * @type {[import("solid-js").Accessor<import("../../api").FSElement[]>, any]}
-	 */
 	const [fsLayer, setFsLayer] = createSignal([])
-	/**
-	 * @type {[import("solid-js").Accessor<import("../../api").Storage>, any]}
-	 */
 	const [storage, setStorage] = createSignal()
 	const [isAccessPage, setIsAccessPage] = createSignal(false)
 	const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] =
@@ -39,10 +40,10 @@ const Files = () => {
 	const [isGrantAccessButtonVisible, setIsGrantButtonAccessVisible] =
 		createSignal(false)
 	const [isGrantAccessVisible, setIsGrantAccessVisible] = createSignal(false)
-	/**
-	 * @type {[import("solid-js").Accessor<import("../api").UserWithAccess[]>, any]}
-	 */
 	const [users, setUsers] = createSignal([])
+	const [viewMode, setViewMode] = createSignal('grid') // 'grid' | 'list'
+	const [searchQuery, setSearchQuery] = createSignal('')
+	const [isDragOver, setIsDragOver] = createSignal(false)
 	const navigate = useNavigate()
 	const params = useParams()
 	const basePath = `/storages/${params.id}/files`
@@ -81,15 +82,12 @@ const Files = () => {
 
 	const reload = async () => {
 		if (window.location.pathname.startsWith(basePath)) {
-			console.log(window.location.pathname)
 			await fetchFSLayer()
 		}
 	}
 
 	onMount(() => {
 		Promise.all([fetchStorage(), fetchFSLayer()]).then()
-
-		// Either me or the solidjs-router creator is dumb af so I have to use this sht
 		window.addEventListener('popstate', reload, false)
 	})
 
@@ -98,11 +96,9 @@ const Files = () => {
 	useBeforeLeave(async (e) => {
 		if (e.to.startsWith(basePath)) {
 			let newPath = e.to.slice(basePath.length)
-
 			if (newPath.startsWith('/')) {
 				newPath = newPath.slice(1)
 			}
-
 			await fetchFSLayer(newPath)
 		}
 	})
@@ -114,16 +110,12 @@ const Files = () => {
 		setIsCreateFolderDialogOpen(false)
 	}
 
-	/**
-	 *
-	 * @param {string} folderName
-	 */
 	const createFolder = async (folderName) => {
-		const basePath = params.path.endsWith('/')
+		const base = params.path.endsWith('/')
 			? params.path.slice(0, -1)
 			: params.path
 
-		await API.files.createFolder(params.id, basePath, folderName)
+		await API.files.createFolder(params.id, base, folderName)
 		addAlert(`Created folder "${folderName}"`, 'success')
 		await fetchFSLayer()
 	}
@@ -132,22 +124,72 @@ const Files = () => {
 		uploadFileInputElement.click()
 	}
 
-	/**
-	 *
-	 * @param {Event} event
-	 */
 	const uploadFile = async (event) => {
 		const file = event.target.files[0]
 		if (file === undefined) {
 			return
 		}
-
 		event.target.value = null
 
 		await API.files.uploadFile(params.id, params.path, file)
 		addAlert(`Uploaded file "${file.name}"`, 'success')
 		await fetchFSLayer()
 	}
+
+	const uploadFiles = async (files) => {
+		const fileList = Array.from(files).filter((f) => f.isFile && f.size > 0)
+		if (fileList.length === 0) return
+		for (const file of fileList) {
+			try {
+				await API.files.uploadFile(params.id, params.path, file)
+				addAlert(`Uploaded "${file.name}"`, 'success')
+			} catch (err) {
+				addAlert(`Failed to upload "${file.name}"`, 'error')
+			}
+		}
+		await fetchFSLayer()
+	}
+
+	const handleRename = async (oldPath, newPath) => {
+		await API.files.renameFile(params.id, oldPath, newPath)
+		addAlert('Renamed successfully', 'success')
+		await fetchFSLayer()
+	}
+
+	const handleDrop = (e) => {
+		e.preventDefault()
+		setIsDragOver(false)
+		if (e.dataTransfer?.files?.length) {
+			uploadFiles(e.dataTransfer.files)
+		}
+	}
+
+	const handleDragOver = (e) => {
+		e.preventDefault()
+		setIsDragOver(true)
+		e.dataTransfer.dropEffect = 'copy'
+	}
+
+	const handleDragLeave = (e) => {
+		e.preventDefault()
+		setIsDragOver(false)
+	}
+
+	const filteredAndSortedLayer = createMemo(() => {
+		let items = fsLayer()
+		const q = searchQuery().toLowerCase().trim()
+		if (q) {
+			items = items.filter((el) => el.name.toLowerCase().includes(q))
+		}
+		items = [...items].sort((a, b) => {
+			if (a.name === '..') return -1
+			if (b.name === '..') return 1
+			if (!a.is_file && b.is_file) return -1
+			if (a.is_file && !b.is_file) return 1
+			return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+		})
+		return items
+	})
 
 	return (
 		<>
@@ -204,7 +246,7 @@ const Files = () => {
 							<Menu button_title="Create">
 								<MenuItem onClick={openCreateFolderDialog}>
 									<ListItemIcon>
-										<UploadFolderIcon />
+										<DriveFolderUploadIcon />
 									</ListItemIcon>
 									<ListItemText>Create folder</ListItemText>
 								</MenuItem>
@@ -238,25 +280,93 @@ const Files = () => {
 						/>
 					}
 				>
-					<Grid>
-						<Show when={fsLayer().length} fallback={<>Not files yet</>}>
+					<Breadcrumbs
+						storageId={params.id}
+						storageName={storage()?.name}
+						path={params.path || ''}
+						basePath={basePath}
+					/>
+
+					<Grid container spacing={1} sx={{ mb: 2 }}>
+						<Grid item xs={12} sm={6} md={4}>
+							<TextField
+								fullWidth
+								size="small"
+								placeholder="Search files and folders..."
+								value={searchQuery()}
+								onInput={(e) => setSearchQuery(e.target.value)}
+								slotProps={{
+									input: {
+										startAdornment: (
+											<InputAdornment position="start">
+												<SearchIcon fontSize="small" />
+											</InputAdornment>
+										),
+									},
+								}}
+								sx={{ maxWidth: 360 }}
+							/>
+						</Grid>
+						<Grid item xs={12} sm={6} md={4}>
+							<ToggleButtonGroup
+								value={viewMode()}
+								exclusive
+								onChange={(_, v) => v && setViewMode(v)}
+								size="small"
+							>
+								<ToggleButton value="grid" aria-label="Grid view">
+									<ViewModuleIcon />
+								</ToggleButton>
+								<ToggleButton value="list" aria-label="List view">
+									<ViewListIcon />
+								</ToggleButton>
+							</ToggleButtonGroup>
+						</Grid>
+					</Grid>
+
+					<Box
+						onDrop={handleDrop}
+						onDragOver={handleDragOver}
+						onDragLeave={handleDragLeave}
+						sx={{
+							outline: isDragOver()
+								? '2px dashed'
+								: '1px solid transparent',
+							outlineColor: isDragOver() ? 'primary.main' : 'transparent',
+							borderRadius: 2,
+							minHeight: 120,
+							transition: 'outline 0.2s',
+						}}
+					>
+						<Show when={filteredAndSortedLayer().length} fallback={<Typography color="text.secondary">No files yet</Typography>}>
 							<Grid
 								container
 								spacing={1}
-								sx={{ maxWidth: 900, mx: 'auto', py: 1 }}
+								sx={{
+									maxWidth: viewMode() === 'list' ? 800 : 1200,
+									mx: 'auto',
+									py: 1,
+								}}
 							>
-								{mapArray(fsLayer, (fsElement) => (
-									<Grid item xs={6} sm={4} md={3}>
+								{mapArray(filteredAndSortedLayer, (fsElement) => (
+									<Grid
+										item
+										xs={viewMode() === 'list' ? 12 : 6}
+										sm={viewMode() === 'list' ? 12 : 4}
+										md={viewMode() === 'list' ? 12 : 3}
+									>
 										<FSListItem
 											fsElement={fsElement}
 											storageId={params.id}
+											view={viewMode()}
 											onDelete={fetchFSLayer}
+											onRename={handleRename}
 										/>
 									</Grid>
 								))}
 							</Grid>
 						</Show>
-					</Grid>
+					</Box>
 
 					<CreateFolderDialog
 						isOpened={isCreateFolderDialogOpen()}
