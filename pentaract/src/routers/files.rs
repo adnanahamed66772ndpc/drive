@@ -13,6 +13,8 @@ use reqwest::header;
 use tokio_util::bytes::Bytes;
 use uuid::Uuid;
 
+use serde::Serialize;
+
 use crate::{
     common::{
         jwt_manager::AuthUser,
@@ -25,6 +27,13 @@ use crate::{
     },
     services::files::FilesService,
 };
+
+#[derive(Serialize)]
+struct DeleteResponse {
+    deleted: bool,
+    from_app: bool,
+    from_telegram: bool,
+}
 
 pub struct FilesRouter;
 
@@ -237,16 +246,16 @@ impl FilesRouter {
         State(state): State<Arc<AppState>>,
         Extension(user): Extension<AuthUser>,
         RoutePath((storage_id, path)): RoutePath<(Uuid, String)>,
-    ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    ) -> Result<Json<DeleteResponse>, (StatusCode, String)> {
         FilesService::new(&state.db, state.tx.clone())
             .delete(&path, storage_id, &user)
             .await
             .map_err(|e| <(StatusCode, String)>::from(e))?;
 
-        Ok(Json(serde_json::json!({
-            "deleted": true,
-            "from_app": true,
-            "from_telegram": true
-        })))
+        Ok(Json(DeleteResponse {
+            deleted: true,
+            from_app: true,
+            from_telegram: true,
+        }))
     }
 }
