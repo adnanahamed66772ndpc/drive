@@ -19,6 +19,7 @@ import { createSignal, onCleanup, Show } from 'solid-js'
 import { useNavigate, useParams } from '@solidjs/router'
 
 import API from '../api'
+import { alertStore } from '../components/AlertStack'
 import { isImageFile, isVideoFile } from '../common/fileTypes'
 import {
 	getCustomThumbnail,
@@ -101,6 +102,7 @@ const FSListItem = (props) => {
 				? props.fsElement.path
 				: props.fsElement.path + '/'
 		await API.files.deleteFile(params.id, path)
+		alertStore.addAlert('Deleted from app and Telegram', 'success')
 		props.onDelete()
 	}
 

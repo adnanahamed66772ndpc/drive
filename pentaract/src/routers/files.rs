@@ -237,12 +237,16 @@ impl FilesRouter {
         State(state): State<Arc<AppState>>,
         Extension(user): Extension<AuthUser>,
         RoutePath((storage_id, path)): RoutePath<(Uuid, String)>,
-    ) -> Result<(), (StatusCode, String)> {
+    ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
         FilesService::new(&state.db, state.tx.clone())
             .delete(&path, storage_id, &user)
             .await
             .map_err(|e| <(StatusCode, String)>::from(e))?;
 
-        Ok(())
+        Ok(Json(serde_json::json!({
+            "deleted": true,
+            "from_app": true,
+            "from_telegram": true
+        })))
     }
 }
